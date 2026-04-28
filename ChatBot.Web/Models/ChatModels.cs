@@ -1,0 +1,78 @@
+namespace ChatBot.Web.Models;
+
+/// <summary>A configured RAG application / knowledge base selectable from the UI.</summary>
+public record RagApplication(
+    string Id,
+    string Name,
+    string Description,
+    string DeploymentName,
+    string? SearchIndexName);
+
+/// <summary>A single turn in the conversation.</summary>
+public class ChatMessage
+{
+    public string Id        { get; init; } = Guid.NewGuid().ToString("N");
+    public string Role      { get; set; }  = "user";        // "user" | "assistant"
+    public string Content   { get; set; }  = string.Empty;
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public List<Citation> Citations { get; set; } = [];
+}
+
+/// <summary>A RAG source citation returned alongside an answer.</summary>
+public class Citation
+{
+    public int     Index    { get; set; }
+    public string  Title    { get; set; } = "Source";
+    public string? Url      { get; set; }
+    public string? FilePath { get; set; }
+    public string? Excerpt  { get; set; }
+}
+
+/// <summary>A single streamed text chunk from the service layer.</summary>
+public class ChatChunk
+{
+    public string          Text      { get; set; } = string.Empty;
+    public List<Citation>? Citations { get; set; }
+    public bool            IsDone   { get; set; }
+    public bool            IsError  { get; set; }
+}
+
+// ── Azure AI Foundry REST API shapes ────────────────────────────────────────
+
+public class FoundryRequest
+{
+    public string               model        { get; set; } = string.Empty;
+    public List<FoundryMessage> messages     { get; set; } = [];
+    public bool                 stream       { get; set; } = true;
+    public int                  max_tokens   { get; set; } = 1024;
+    public float                temperature  { get; set; } = 0.7f;
+    public List<DataSource>?    data_sources { get; set; }
+}
+
+public class FoundryMessage
+{
+    public string role    { get; set; } = "user";
+    public string content { get; set; } = string.Empty;
+}
+
+public class DataSource
+{
+    public string              type       { get; set; } = "azure_search";
+    public DataSourceParameters parameters { get; set; } = new();
+}
+
+public class DataSourceParameters
+{
+    public string        endpoint        { get; set; } = string.Empty;
+    public string        index_name      { get; set; } = string.Empty;
+    public DataSourceAuth authentication { get; set; } = new();
+    public bool          in_scope        { get; set; } = true;
+    public string        query_type      { get; set; } = "semantic";
+    public int           top_n_documents { get; set; } = 5;
+}
+
+public class DataSourceAuth
+{
+    public string type { get; set; } = "api_key";
+    public string key  { get; set; } = string.Empty;
+}

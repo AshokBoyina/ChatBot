@@ -1,0 +1,390 @@
+@rendermode InteractiveServer
+@inject IAzureFoundryService FoundryService
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="cw-container">
+
+    @* ── Floating bubble (collapsed) ── *@
+    @if (!_isOpen)
+    {
+        <button class="cw-bubble @(_hasUnread ? "cw-bubble--pulse" : "")"
+                @onclick="OpenChat"
+                title="Open NASS Assistant"
+                aria-label="Open NASS Assistant">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            @if (_hasUnread)
+            {
+                <span class="cw-unread-dot" aria-hidden="true"></span>
+            }
+        </button>
+    }
+
+    @* ── Chat panel (expanded) ── *@
+    @if (_isOpen)
+    {
+        <div class="cw-panel" role="dialog" aria-label="NASS AI Assistant">
+
+            @* ── Header ── *@
+            <div class="cw-header">
+                <div class="cw-header-left">
+                    <div class="cw-avatar" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="cw-bot-name">NASS Assistant</div>
+                        <div class="cw-bot-status">
+                            @if (_isStreaming)
+                            {
+                                <span class="cw-dots"><span></span><span></span><span></span></span>
+                                <span>Typing…</span>
+                            }
+                            else
+                            {
+                                <span class="cw-online-dot"></span>
+                                <span>Online</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="cw-header-right">
+                    @if (_apps.Count > 1)
+                    {
+                        <select class="cw-app-select"
+                                @bind="_selectedAppId"
+                                @bind:after="OnAppChanged"
+                                title="Switch knowledge base"
+                                aria-label="Switch knowledge base">
+                            @foreach (var a in _apps)
+                            {
+                                <option value="@a.Id">@a.Name</option>
+                            }
+                        </select>
+                    }
+                    <button class="cw-hdr-btn" @onclick="ClearChat" title="New conversation" aria-label="New conversation">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2">
+                            <polyline points="1 4 1 10 7 10" />
+                            <path d="M3.51 15a9 9 0 1 0 .49-3.51" />
+                        </svg>
+                    </button>
+                    <button class="cw-hdr-btn" @onclick="CloseChat" title="Minimise" aria-label="Minimise chat">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            @* ── App badge ── *@
+            @if (_selectedApp is not null)
+            {
+                <div class="cw-app-badge">
+                    <span>📚</span>
+                    <span>@_selectedApp.Description</span>
+                    @if (!string.IsNullOrEmpty(_selectedApp.SearchIndexName))
+                    {
+                        <span class="cw-rag-pill">RAG</span>
+                    }
+                </div>
+            }
+
+            @* ── Messages ── *@
+            <div class="cw-messages" id="cw-messages">
+
+                @* Welcome screen *@
+                @if (_messages.Count == 0 && !_isStreaming)
+                {
+                    <div class="cw-welcome">
+                        <div class="cw-welcome-emoji">👋</div>
+                        <p>Hi! Ask me anything about the selected knowledge base.</p>
+                        <div class="cw-chips">
+                            @foreach (var p in _starterPrompts)
+                            {
+                                <button class="cw-chip" @onclick="() => UseStarter(p)">@p</button>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* Rendered messages *@
+                @foreach (var msg in _messages)
+                {
+                    @if (msg.Role == "user")
+                    {
+                        <div class="cw-row cw-row--user">
+                            <div class="cw-bubble-user">@msg.Content</div>
+                            <time class="cw-time">@msg.Timestamp.ToLocalTime().ToString("HH:mm")</time>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="cw-row cw-row--bot">
+                            <div class="cw-bot-row">
+                                <span class="cw-mini-av" aria-hidden="true">AI</span>
+                                <div class="cw-bubble-bot">@msg.Content</div>
+                            </div>
+
+                            @* Citations *@
+                            @if (msg.Citations.Count > 0)
+                            {
+                                <div class="cw-cit-wrap">
+                                    <button class="cw-cit-toggle"
+                                            @onclick="() => ToggleCit(msg.Id)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2" width="11" height="11">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                            <polyline points="14 2 14 8 20 8" />
+                                        </svg>
+                                        @msg.Citations.Count source@(msg.Citations.Count != 1 ? "s" : "")
+                                        <span class="cw-arrow @(_openCit.Contains(msg.Id) ? "cw-arrow--open" : "")">›</span>
+                                    </button>
+
+                                    @if (_openCit.Contains(msg.Id))
+                                    {
+                                        <ul class="cw-cit-list">
+                                            @foreach (var c in msg.Citations)
+                                            {
+                                                <li class="cw-cit">
+                                                    <span class="cw-cit-n">[@c.Index]</span>
+                                                    @if (!string.IsNullOrEmpty(c.Url))
+                                                    {
+                                                        <a href="@c.Url" target="_blank" rel="noopener"
+                                                           class="cw-cit-link" title="@c.Excerpt">@c.Title</a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="cw-cit-title" title="@c.Excerpt">@c.Title</span>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(c.FilePath))
+                                                    {
+                                                        <span class="cw-cit-path">@c.FilePath</span>
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            }
+
+                            <time class="cw-time">@msg.Timestamp.ToLocalTime().ToString("HH:mm")</time>
+                        </div>
+                    }
+                }
+
+                @* Live streaming reply *@
+                @if (_isStreaming)
+                {
+                    <div class="cw-row cw-row--bot">
+                        <div class="cw-bot-row">
+                            <span class="cw-mini-av" aria-hidden="true">AI</span>
+                            <div class="cw-bubble-bot cw-bubble-bot--live">
+                                @_streamingText<span class="cw-cursor" aria-hidden="true">▋</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Error banner *@
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <div class="cw-error" role="alert">⚠️ @_error</div>
+                }
+            </div>
+
+            @* ── Input bar ── *@
+            <div class="cw-input-bar">
+                <textarea class="cw-input"
+                          @bind="_inputText"
+                          @bind:event="oninput"
+                          @onkeydown="HandleKey"
+                          placeholder="Ask me anything… (Enter to send)"
+                          rows="1"
+                          disabled="@_isStreaming"
+                          maxlength="4000"
+                          aria-label="Your message"></textarea>
+                <button class="cw-send"
+                        @onclick="SendMessage"
+                        disabled="@(string.IsNullOrWhiteSpace(_inputText) || _isStreaming)"
+                        title="Send (Enter)"
+                        aria-label="Send">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="cw-footer">USDA &middot; National Agricultural Statistics Service</div>
+
+        </div>
+    }
+
+</div>
+
+@code {
+    // ── State ─────────────────────────────────────────────────────────────────
+    private bool   _isOpen      = false;
+    private bool   _isStreaming = false;
+    private bool   _hasUnread   = false;
+    private string _inputText   = string.Empty;
+    private string _streamingText = string.Empty;
+    private string? _error;
+
+    private List<ChatMessage>    _messages = [];
+    private List<RagApplication> _apps     = [];
+    private HashSet<string>      _openCit  = [];
+    private string               _selectedAppId = string.Empty;
+    private RagApplication?      _selectedApp;
+
+    private CancellationTokenSource? _cts;
+
+    private readonly string[] _starterPrompts =
+    [
+        "What topics can you help me with?",
+        "Give me a summary of available documents.",
+        "What are the key policies I should know?"
+    ];
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    protected override void OnInitialized()
+    {
+        _apps = FoundryService.GetApplications().ToList();
+        if (_apps.Count > 0)
+        {
+            _selectedAppId = _apps[0].Id;
+            _selectedApp   = _apps[0];
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+
+    // ── Panel control ─────────────────────────────────────────────────────────
+    private void OpenChat()  { _isOpen = true; _hasUnread = false; }
+    private void CloseChat() { _isOpen = false; _cts?.Cancel(); }
+
+    private void ClearChat()
+    {
+        _messages.Clear();
+        _streamingText = string.Empty;
+        _error = null;
+        _openCit.Clear();
+        _cts?.Cancel();
+        _isStreaming = false;
+    }
+
+    // ── App selector ──────────────────────────────────────────────────────────
+    private void OnAppChanged()
+    {
+        _selectedApp = _apps.FirstOrDefault(a => a.Id == _selectedAppId);
+        ClearChat();
+    }
+
+    // ── Send logic ────────────────────────────────────────────────────────────
+    private async Task HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+            await SendMessage();
+    }
+
+    private async Task UseStarter(string text)
+    {
+        _inputText = text;
+        await SendMessage();
+    }
+
+    private async Task SendMessage()
+    {
+        var text = _inputText.Trim();
+        if (string.IsNullOrWhiteSpace(text) || _isStreaming) return;
+
+        _inputText = string.Empty;
+        _error     = null;
+
+        // Snapshot history before appending new user message
+        var history = _messages.ToList();
+
+        _messages.Add(new ChatMessage { Role = "user", Content = text });
+        _isStreaming   = true;
+        _streamingText = string.Empty;
+
+        await InvokeAsync(StateHasChanged);
+        await ScrollBottomAsync();
+
+        if (_selectedApp is null)
+        {
+            _error       = "No application selected.";
+            _isStreaming = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        List<Citation> citations = [];
+
+        try
+        {
+            await foreach (var chunk in FoundryService.StreamChatAsync(
+                               _selectedApp, history, text, _cts.Token))
+            {
+                if (chunk.IsError)  { _error = chunk.Text; break; }
+                if (chunk.IsDone)   { citations = chunk.Citations ?? []; break; }
+
+                _streamingText += chunk.Text;
+                await InvokeAsync(StateHasChanged);
+                await ScrollBottomAsync();
+            }
+        }
+        catch (OperationCanceledException) { /* user closed/cleared */ }
+        catch (Exception ex) { _error = $"Unexpected error: {ex.Message}"; }
+        finally
+        {
+            if (_streamingText.Length > 0)
+            {
+                _messages.Add(new ChatMessage
+                {
+                    Role      = "assistant",
+                    Content   = _streamingText,
+                    Citations = citations
+                });
+            }
+
+            _streamingText = string.Empty;
+            _isStreaming   = false;
+            _cts           = null;
+
+            if (!_isOpen) _hasUnread = true;
+
+            await InvokeAsync(StateHasChanged);
+            await ScrollBottomAsync();
+        }
+    }
+
+    // ── Citations toggle ──────────────────────────────────────────────────────
+    private void ToggleCit(string id)
+    {
+        if (!_openCit.Add(id)) _openCit.Remove(id);
+    }
+
+    // ── JS helpers ────────────────────────────────────────────────────────────
+    private async Task ScrollBottomAsync()
+    {
+        try { await JS.InvokeVoidAsync("chatWidget.scrollToBottom", "cw-messages"); }
+        catch { /* ignore pre-render */ }
+    }
+}
