@@ -7,25 +7,25 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Bind AzureFoundry config section early so we can read UseMock
-builder.Services.Configure<AzureFoundryOptions>(
-    builder.Configuration.GetSection("AzureFoundry"));
+// Bind NassApi config section
+builder.Services.Configure<NassApiOptions>(
+    builder.Configuration.GetSection("NassApi"));
 
-bool useMock = builder.Configuration.GetValue<bool>("AzureFoundry:UseMock");
+bool useMock = builder.Configuration.GetValue<bool>("NassApi:UseMock");
 
 if (useMock)
 {
-    // Mock service — no HTTP client needed, no Azure credentials required
-    builder.Services.AddScoped<IAzureFoundryService, MockAzureFoundryService>();
+    // Mock service — no HTTP client, no real API endpoint needed
+    builder.Services.AddScoped<IChatService, MockChatService>();
 }
 else
 {
-    // Real Azure AI Foundry service — register typed HttpClient
-    builder.Services.AddHttpClient<AzureFoundryService>(client =>
+    // Real NASS AI Bot API service
+    builder.Services.AddHttpClient<NassApiService>(client =>
     {
-        client.Timeout = TimeSpan.FromMinutes(5); // allow long streaming responses
+        client.Timeout = TimeSpan.FromSeconds(120);
     });
-    builder.Services.AddScoped<IAzureFoundryService, AzureFoundryService>();
+    builder.Services.AddScoped<IChatService, NassApiService>();
 }
 
 var app = builder.Build();

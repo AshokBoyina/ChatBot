@@ -1,5 +1,5 @@
 @rendermode InteractiveServer
-@inject IAzureFoundryService FoundryService
+@inject IChatService FoundryService
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -209,7 +209,6 @@
                           @onkeydown="HandleKey"
                           placeholder="Ask me anything… (Enter to send)"
                           rows="1"
-                          disabled="@_isStreaming"
                           maxlength="4000"
                           aria-label="Your message"></textarea>
                 <button class="cw-send"
@@ -354,6 +353,18 @@
         catch (Exception ex) { _error = $"Unexpected error: {ex.Message}"; }
         finally
         {
+            // If the API returned an error chunk, surface it as a bot message too
+            // so it appears inline in the chat and can't be missed
+            if (!string.IsNullOrEmpty(_error) && _streamingText.Length == 0)
+            {
+                _messages.Add(new ChatMessage
+                {
+                    Role    = "assistant",
+                    Content = $"⚠️ {_error}"
+                });
+                _error = null; // shown in the message list — no need for the banner too
+            }
+
             if (_streamingText.Length > 0)
             {
                 _messages.Add(new ChatMessage
@@ -372,7 +383,53 @@
 
             await InvokeAsync(StateHasChanged);
             await ScrollBottomAsync();
+
+            // Auto-summarise once the history grows beyond the threshold
+            if (_messages.Count >= SummariseThreshold)
+                await TrimHistoryAsync();
         }
+    }
+
+    // ── History summarisation ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// When the message list reaches <see cref="SummariseThreshold"/>, the oldest
+    /// messages (everything except the last <see cref="SummariseTailKeep"/> turns)
+    /// are summarised by the API into a single context message.  This keeps the
+    /// payload sent to the API small while preserving conversational context.
+    /// </summary>
+    private const int SummariseThreshold = 20;   // trigger at 20 messages
+    private const int SummariseTailKeep  = 4;    // always keep the 4 most recent
+
+    private async Task TrimHistoryAsync()
+    {
+        int headCount = _messages.Count - SummariseTailKeep;
+        if (headCount <= 0) return;
+
+        var toSummarise = _messages.Take(headCount).ToList();
+        var tail        = _messages.Skip(headCount).ToList();
+
+        string? summary;
+        try
+        {
+            summary = await FoundryService.SummarizeAsync(toSummarise);
+        }
+        catch
+        {
+            return; // if summarisation fails just leave history as-is
+        }
+
+        if (string.IsNullOrWhiteSpace(summary)) return;
+
+        _messages.Clear();
+        _messages.Add(new ChatMessage
+        {
+            Role    = "assistant",
+            Content = $"📋 **Earlier conversation summary**\n\n{summary}"
+        });
+        _messages.AddRange(tail);
+
+        await InvokeAsync(StateHasChanged);
     }
 
     // ── Citations toggle ──────────────────────────────────────────────────────
