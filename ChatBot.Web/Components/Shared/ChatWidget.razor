@@ -359,7 +359,8 @@
         // drive the rest of the flow
         try
         {
-            await JS.InvokeVoidAsync("chatWidget.sendMessage", requestBody, _dotnetRef);
+            await JS.InvokeVoidAsync("chatWidget.sendMessage", requestBody, _dotnetRef,
+                FoundryService.ApiAccessKey);   // forwarded as X-API-Access-Key header
         }
         catch (JSException ex)
         {

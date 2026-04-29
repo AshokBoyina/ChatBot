@@ -48,8 +48,18 @@ app.MapRazorComponents<App>()
 app.MapPost("/api/chat", async (
     ChatApiRequest       req,
     IChatService         svc,
+    HttpRequest          httpReq,
     CancellationToken    ct) =>
 {
+    // ── Access-key guard ──────────────────────────────────────────────────────
+    var configuredKey = svc.ApiAccessKey;
+    if (!string.IsNullOrWhiteSpace(configuredKey))
+    {
+        var provided = httpReq.Headers["X-API-Access-Key"].FirstOrDefault();
+        if (provided != configuredKey)
+            return Results.Unauthorized();
+    }
+
     // Resolve the selected RAG application
     var apps = svc.GetApplications();
     var selectedApp = string.IsNullOrEmpty(req.AppId)

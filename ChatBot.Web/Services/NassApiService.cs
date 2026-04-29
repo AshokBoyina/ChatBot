@@ -47,7 +47,8 @@ public class NassApiService : IChatService
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    public string AssistantName => _opts.AssistantName;
+    public string  AssistantName => _opts.AssistantName;
+    public string? ApiAccessKey  => _opts.ApiAccessKey;
 
     public IReadOnlyList<RagApplication> GetApplications() => _apps;
 
@@ -128,6 +129,9 @@ public class NassApiService : IChatService
 
             if (!string.IsNullOrWhiteSpace(_opts.ApiKey))
                 req.Headers.Add("X-Api-Key", _opts.ApiKey);
+
+            if (!string.IsNullOrWhiteSpace(_opts.ApiAccessKey))
+                req.Headers.Add("X-API-Access-Key", _opts.ApiAccessKey);
 
             using var response = await _http.SendAsync(req, ct);
 

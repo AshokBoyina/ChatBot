@@ -31,17 +31,21 @@ window.chatWidget = {
      * POST /api/chat, receive the full reply, then animate it word-by-word
      * back into Blazor via [JSInvokable] callbacks on dotnetRef.
      *
-     * @param {object}  requestBody  { message, appId, history: [{role,content}] }
-     * @param {object}  dotnetRef    DotNetObjectReference<ChatWidget>
+     * @param {object}  requestBody   { message, appId, history: [{role,content}] }
+     * @param {object}  dotnetRef     DotNetObjectReference<ChatWidget>
+     * @param {string|null} accessKey Value for the X-API-Access-Key header (null = omit)
      */
-    sendMessage: async function (requestBody, dotnetRef) {
+    sendMessage: async function (requestBody, dotnetRef, accessKey) {
         this._abortController = new AbortController();
         const signal = this._abortController.signal;
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (accessKey) headers['X-API-Access-Key'] = accessKey;
 
         try {
             const response = await fetch('/api/chat', {
                 method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers,
                 body:    JSON.stringify(requestBody),
                 signal
             });

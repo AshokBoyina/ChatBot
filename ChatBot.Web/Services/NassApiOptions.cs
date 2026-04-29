@@ -27,10 +27,18 @@ public class NassApiOptions
     public string ChatPath { get; set; } = "/v1/AI/Bot/chat";
 
     /// <summary>
-    /// Optional Bearer token / API key sent as Authorization header.
+    /// Optional API key sent as X-Api-Key header to the upstream NASS API.
     /// Leave empty if the API uses network-level auth.
     /// </summary>
     public string? ApiKey { get; set; }
+
+    /// <summary>
+    /// Optional key that the browser must include as the X-API-Access-Key header
+    /// when calling the local POST /api/chat endpoint.
+    /// When set, requests without a matching header are rejected with 401 Unauthorized.
+    /// Leave empty to allow unauthenticated access (e.g. intranet-only deployments).
+    /// </summary>
+    public string? ApiAccessKey { get; set; }
 
     /// <summary>
     /// When true (default), the full conversation history of the current session

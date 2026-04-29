@@ -11,6 +11,12 @@ public interface IChatService
     /// <summary>Display name shown in the chat header and above the floating bubble.</summary>
     string AssistantName { get; }
 
+    /// <summary>
+    /// Key that the browser sends as the X-API-Access-Key request header when
+    /// calling POST /api/chat.  Null/empty means the endpoint is unprotected.
+    /// </summary>
+    string? ApiAccessKey { get; }
+
     /// <summary>Returns the list of RAG applications shown in the selector.</summary>
     IReadOnlyList<RagApplication> GetApplications();
 

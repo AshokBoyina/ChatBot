@@ -108,6 +108,7 @@ public class MockChatService : IChatService
     public MockChatService(IOptions<NassApiOptions> opts)
     {
         AssistantName = opts.Value.AssistantName;
+        ApiAccessKey  = opts.Value.ApiAccessKey;
         _apps = opts.Value.Applications
             .Select(a => new RagApplication(
                 a.Id, a.Name, a.Description, a.DeploymentName, a.SearchIndexName))
@@ -115,7 +116,8 @@ public class MockChatService : IChatService
             .AsReadOnly();
     }
 
-    public string AssistantName { get; }
+    public string  AssistantName { get; }
+    public string? ApiAccessKey  { get; }
 
     public IReadOnlyList<RagApplication> GetApplications() => _apps;
 
