@@ -50,6 +50,8 @@ public class NassApiService : IChatService
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    public string AssistantName => _opts.AssistantName;
+
     public IReadOnlyList<RagApplication> GetApplications() => _apps;
 
     public async IAsyncEnumerable<ChatChunk> StreamChatAsync(

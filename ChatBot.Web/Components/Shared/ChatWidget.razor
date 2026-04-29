@@ -8,38 +8,46 @@
     @* ── Floating bubble (collapsed) ── *@
     @if (!_isOpen)
     {
-        <button class="cw-bubble @(_hasUnread ? "cw-bubble--pulse" : "")"
-                @onclick="OpenChat"
-                title="Open NASS Assistant"
-                aria-label="Open NASS Assistant">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            @if (_hasUnread)
-            {
-                <span class="cw-unread-dot" aria-hidden="true"></span>
-            }
-        </button>
+        <div class="cw-bubble-wrap">
+
+            @* ── Compact name pill above the bubble ── *@
+            <div class="cw-id-pill" @onclick="OpenChat" title="@($"Chat with {FoundryService.AssistantName}")">
+                <img class="cw-pill-avatar" aria-hidden="true" alt=""
+                     src="data:image/svg+xml,%3Csvg viewBox='0 0 28 28' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='14' cy='14' r='14' fill='%231f4d00'/%3E%3Cellipse cx='14' cy='12' rx='7.5' ry='8.5' fill='%231A0A00'/%3E%3Cellipse cx='14' cy='13.5' rx='6' ry='6.5' fill='%23FCCBA1'/%3E%3Cpath d='M6.5 12 Q7 4 14 4.5 Q21 4 21.5 12 Q19 7 14 7.5 Q9 7 6.5 12Z' fill='%231A0A00'/%3E%3Cpath d='M8 15 Q6.5 19 7.5 23 Q8.5 19.5 8.5 17Z' fill='%231A0A00'/%3E%3Cpath d='M20 15 Q21.5 19 20.5 23 Q19.5 19.5 19.5 17Z' fill='%231A0A00'/%3E%3Cellipse cx='11' cy='13' rx='1.5' ry='1.4' fill='white'/%3E%3Cellipse cx='17' cy='13' rx='1.5' ry='1.4' fill='white'/%3E%3Ccircle cx='11.3' cy='13.2' r='0.9' fill='%231A0A00'/%3E%3Ccircle cx='17.3' cy='13.2' r='0.9' fill='%231A0A00'/%3E%3Ccircle cx='11.6' cy='12.8' r='0.35' fill='white'/%3E%3Ccircle cx='17.6' cy='12.8' r='0.35' fill='white'/%3E%3Cellipse cx='9' cy='15.5' rx='2' ry='1.2' fill='%23F4897A' opacity='0.3'/%3E%3Cellipse cx='19' cy='15.5' rx='2' ry='1.2' fill='%23F4897A' opacity='0.3'/%3E%3Cpath d='M10.5 17 Q14 19.5 17.5 17' stroke='%23C45A3A' stroke-width='1' fill='none' stroke-linecap='round'/%3E%3Cpath d='M7 13 Q7 6 14 6 Q21 6 21 13' stroke='%237EC63B' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3Crect x='4.5' y='12' width='4' height='5' rx='2' fill='%23336600'/%3E%3Crect x='19.5' y='12' width='4' height='5' rx='2' fill='%23336600'/%3E%3Cpath d='M22.5 16 Q24.5 18 24 20.5' stroke='%237EC63B' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='24' cy='20.8' r='1.2' fill='%237EC63B'/%3E%3C/svg%3E" />
+                <span class="cw-pill-name">@FoundryService.AssistantName</span>
+                <span class="cw-pill-dot" aria-hidden="true"></span>
+            </div>
+
+            <button class="cw-bubble @(_hasUnread ? "cw-bubble--pulse" : "")"
+                    @onclick="OpenChat"
+                    title="@($"Open {FoundryService.AssistantName}")"
+                    aria-label="@($"Open {FoundryService.AssistantName}")">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                @if (_hasUnread)
+                {
+                    <span class="cw-unread-dot" aria-hidden="true"></span>
+                }
+            </button>
+
+        </div>
     }
 
     @* ── Chat panel (expanded) ── *@
     @if (_isOpen)
     {
-        <div class="cw-panel" role="dialog" aria-label="NASS AI Assistant">
+        <div class="cw-panel" role="dialog" aria-label="@FoundryService.AssistantName">
 
             @* ── Header ── *@
             <div class="cw-header">
                 <div class="cw-header-left">
                     <div class="cw-avatar" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                             stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="8" r="4" />
-                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                        </svg>
+                        <img alt="" src="data:image/svg+xml,%3Csvg viewBox='0 0 28 28' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='14' cy='14' r='14' fill='%231f4d00'/%3E%3Cellipse cx='14' cy='12' rx='7.5' ry='8.5' fill='%231A0A00'/%3E%3Cellipse cx='14' cy='13.5' rx='6' ry='6.5' fill='%23FCCBA1'/%3E%3Cpath d='M6.5 12 Q7 4 14 4.5 Q21 4 21.5 12 Q19 7 14 7.5 Q9 7 6.5 12Z' fill='%231A0A00'/%3E%3Cpath d='M8 15 Q6.5 19 7.5 23 Q8.5 19.5 8.5 17Z' fill='%231A0A00'/%3E%3Cpath d='M20 15 Q21.5 19 20.5 23 Q19.5 19.5 19.5 17Z' fill='%231A0A00'/%3E%3Cellipse cx='11' cy='13' rx='1.5' ry='1.4' fill='white'/%3E%3Cellipse cx='17' cy='13' rx='1.5' ry='1.4' fill='white'/%3E%3Ccircle cx='11.3' cy='13.2' r='0.9' fill='%231A0A00'/%3E%3Ccircle cx='17.3' cy='13.2' r='0.9' fill='%231A0A00'/%3E%3Ccircle cx='11.6' cy='12.8' r='0.35' fill='white'/%3E%3Ccircle cx='17.6' cy='12.8' r='0.35' fill='white'/%3E%3Cellipse cx='9' cy='15.5' rx='2' ry='1.2' fill='%23F4897A' opacity='0.3'/%3E%3Cellipse cx='19' cy='15.5' rx='2' ry='1.2' fill='%23F4897A' opacity='0.3'/%3E%3Cpath d='M10.5 17 Q14 19.5 17.5 17' stroke='%23C45A3A' stroke-width='1' fill='none' stroke-linecap='round'/%3E%3Cpath d='M7 13 Q7 6 14 6 Q21 6 21 13' stroke='%237EC63B' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3Crect x='4.5' y='12' width='4' height='5' rx='2' fill='%23336600'/%3E%3Crect x='19.5' y='12' width='4' height='5' rx='2' fill='%23336600'/%3E%3Cpath d='M22.5 16 Q24.5 18 24 20.5' stroke='%237EC63B' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='24' cy='20.8' r='1.2' fill='%237EC63B'/%3E%3C/svg%3E" style="width:100%;height:100%;border-radius:50%;display:block;" />
                     </div>
                     <div>
-                        <div class="cw-bot-name">NASS Assistant</div>
+                        <div class="cw-bot-name">@FoundryService.AssistantName</div>
                         <div class="cw-bot-status">
                             @if (_isStreaming)
                             {
@@ -85,18 +93,7 @@
                 </div>
             </div>
 
-            @* ── App badge ── *@
-            @if (_selectedApp is not null)
-            {
-                <div class="cw-app-badge">
-                    <span>📚</span>
-                    <span>@_selectedApp.Description</span>
-                    @if (!string.IsNullOrEmpty(_selectedApp.SearchIndexName))
-                    {
-                        <span class="cw-rag-pill">RAG</span>
-                    }
-                </div>
-            }
+
 
             @* ── Messages ── *@
             <div class="cw-messages" id="cw-messages">
@@ -130,7 +127,7 @@
                     {
                         <div class="cw-row cw-row--bot">
                             <div class="cw-bot-row">
-                                <span class="cw-mini-av" aria-hidden="true">AI</span>
+                                <span class="cw-mini-av" aria-hidden="true">@((MarkupString)_botAvatarSvg)</span>
                                 <div class="cw-bubble-bot">@msg.Content</div>
                             </div>
 
@@ -232,6 +229,11 @@
 </div>
 
 @code {
+    // ── Bot avatar — encoded as a data-URI so it renders reliably in any context
+    // (inline SVG with shared gradient IDs breaks when the same SVG appears multiple times in the DOM)
+    private const string _botAvatarSvg =
+        """<img class="cw-mini-av-img" aria-hidden="true" alt="" src="data:image/svg+xml,%3Csvg viewBox='0 0 28 28' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='14' cy='14' r='14' fill='%231f4d00'/%3E%3Cellipse cx='14' cy='12' rx='7.5' ry='8.5' fill='%231A0A00'/%3E%3Cellipse cx='14' cy='13.5' rx='6' ry='6.5' fill='%23FCCBA1'/%3E%3Cpath d='M6.5 12 Q7 4 14 4.5 Q21 4 21.5 12 Q19 7 14 7.5 Q9 7 6.5 12Z' fill='%231A0A00'/%3E%3Cpath d='M8 15 Q6.5 19 7.5 23 Q8.5 19.5 8.5 17Z' fill='%231A0A00'/%3E%3Cpath d='M20 15 Q21.5 19 20.5 23 Q19.5 19.5 19.5 17Z' fill='%231A0A00'/%3E%3Cellipse cx='11' cy='13' rx='1.5' ry='1.4' fill='white'/%3E%3Cellipse cx='17' cy='13' rx='1.5' ry='1.4' fill='white'/%3E%3Ccircle cx='11.3' cy='13.2' r='0.9' fill='%231A0A00'/%3E%3Ccircle cx='17.3' cy='13.2' r='0.9' fill='%231A0A00'/%3E%3Ccircle cx='11.6' cy='12.8' r='0.35' fill='white'/%3E%3Ccircle cx='17.6' cy='12.8' r='0.35' fill='white'/%3E%3Cellipse cx='9' cy='15.5' rx='2' ry='1.2' fill='%23F4897A' opacity='0.3'/%3E%3Cellipse cx='19' cy='15.5' rx='2' ry='1.2' fill='%23F4897A' opacity='0.3'/%3E%3Cpath d='M10.5 17 Q14 19.5 17.5 17' stroke='%23C45A3A' stroke-width='1' fill='none' stroke-linecap='round'/%3E%3Cpath d='M7 13 Q7 6 14 6 Q21 6 21 13' stroke='%237EC63B' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3Crect x='4.5' y='12' width='4' height='5' rx='2' fill='%23336600'/%3E%3Crect x='19.5' y='12' width='4' height='5' rx='2' fill='%23336600'/%3E%3Cpath d='M22.5 16 Q24.5 18 24 20.5' stroke='%237EC63B' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='24' cy='20.8' r='1.2' fill='%237EC63B'/%3E%3C/svg%3E"/>""";
+
     // ── State ─────────────────────────────────────────────────────────────────
     private bool   _isOpen      = false;
     private bool   _isStreaming = false;

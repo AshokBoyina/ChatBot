@@ -3,6 +3,12 @@ namespace ChatBot.Web.Services;
 public class NassApiOptions
 {
     /// <summary>
+    /// Display name shown in the chat window header and above the floating bubble.
+    /// Example: "NASS Assistant", "HR Helpdesk", "IT Support Bot"
+    /// </summary>
+    public string AssistantName { get; set; } = "AI Assistant";
+
+    /// <summary>
     /// Set to true to use MockChatService instead of the real NASS API.
     /// Defaults to true in Development, false in Production.
     /// </summary>

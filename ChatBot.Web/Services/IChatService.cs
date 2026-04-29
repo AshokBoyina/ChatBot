@@ -8,6 +8,9 @@ using ChatBot.Web.Models;
 /// </summary>
 public interface IChatService
 {
+    /// <summary>Display name shown in the chat header and above the floating bubble.</summary>
+    string AssistantName { get; }
+
     /// <summary>Returns the list of RAG applications shown in the selector.</summary>
     IReadOnlyList<RagApplication> GetApplications();
 
