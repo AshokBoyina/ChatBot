@@ -228,30 +228,6 @@
 .cw-hdr-btn:hover { background: #336600; border-color: #7ab83a; }
 .cw-hdr-btn svg { width: 15px; height: 15px; }
 
-/* ── App badge ───────────────────────────────────────────────── */
-.cw-app-badge {
-    background: #F2F7EC;
-    border-bottom: 1.5px solid #C5D9A8;
-    padding: 7px 14px;
-    font-size: 0.73rem;
-    font-weight: 500;
-    color: #254D00;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
-}
-.cw-rag-pill {
-    margin-left: auto;
-    background: #336600;
-    color: #fff;
-    border-radius: 4px;
-    padding: 2px 7px;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-}
 
 /* ── Messages scroll area ────────────────────────────────────── */
 .cw-messages {

@@ -44,3 +44,13 @@ public class NassApiOptions
     /// </summary>
     public List<RagAppConfig> Applications { get; set; } = [];
 }
+
+/// <summary>Maps one entry under NassApi:Applications in appsettings.json.</summary>
+public class RagAppConfig
+{
+    public string  Id              { get; set; } = string.Empty;
+    public string  Name            { get; set; } = string.Empty;
+    public string  Description     { get; set; } = string.Empty;
+    public string  DeploymentName  { get; set; } = string.Empty;
+    public string? SearchIndexName { get; set; }
+}
