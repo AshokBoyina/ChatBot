@@ -33,6 +33,14 @@ public class NassApiOptions
     public string? ApiKey { get; set; }
 
     /// <summary>
+    /// When true (default), the full conversation history of the current session
+    /// is prepended to every outgoing message so the API has context.
+    /// Set to false if the API maintains its own session state, or if you want
+    /// each message to be sent in isolation.
+    /// </summary>
+    public bool SendChatHistory { get; set; } = true;
+
+    /// <summary>
     /// JSON field name in the API response that contains the reply text.
     /// Common values: "reply", "message", "response", "answer".
     /// If empty or the field is not found, the raw response body is used.

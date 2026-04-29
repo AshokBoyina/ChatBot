@@ -120,17 +120,28 @@ public class NassApiService : IChatService
     {
         var url = $"{_opts.BaseUrl.TrimEnd('/')}{_opts.ChatPath}";
 
-        // Build the message string — prepend conversation history so the API has full context
-        var sb = new System.Text.StringBuilder();
-        foreach (var m in history)
+        // Build the message string.
+        // When SendChatHistory is true, prepend all prior turns so the API has full context.
+        // When false, send only the current user message (use this if the API manages its own session).
+        string message;
+        if (_opts.SendChatHistory)
         {
-            sb.Append(m.Role == "user" ? "User: " : "Assistant: ");
-            sb.AppendLine(m.Content);
+            var sb = new System.Text.StringBuilder();
+            foreach (var m in history)
+            {
+                sb.Append(m.Role == "user" ? "User: " : "Assistant: ");
+                sb.AppendLine(m.Content);
+            }
+            if (sb.Length > 0) sb.AppendLine(); // blank line before the new question
+            sb.Append(userMessage);
+            message = sb.ToString();
         }
-        if (sb.Length > 0) sb.AppendLine(); // blank line before the new question
-        sb.Append(userMessage);
+        else
+        {
+            message = userMessage;
+        }
 
-        var body = new NassApiRequest { Message = sb.ToString() };
+        var body = new NassApiRequest { Message = message };
         var json = JsonSerializer.Serialize(body, SerialiseOpts);
 
         try
