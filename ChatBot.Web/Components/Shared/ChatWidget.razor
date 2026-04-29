@@ -1,7 +1,7 @@
 @rendermode InteractiveServer
 @inject IChatService FoundryService
 @inject IJSRuntime JS
-@implements IDisposable
+@implements IAsyncDisposable
 
 <div class="cw-container">
 
@@ -235,10 +235,10 @@
         """<img class="cw-mini-av-img" aria-hidden="true" alt="" src="data:image/svg+xml,%3Csvg viewBox='0 0 28 28' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='14' cy='14' r='14' fill='%231f4d00'/%3E%3Cellipse cx='14' cy='12' rx='7.5' ry='8.5' fill='%231A0A00'/%3E%3Cellipse cx='14' cy='13.5' rx='6' ry='6.5' fill='%23FCCBA1'/%3E%3Cpath d='M6.5 12 Q7 4 14 4.5 Q21 4 21.5 12 Q19 7 14 7.5 Q9 7 6.5 12Z' fill='%231A0A00'/%3E%3Cpath d='M8 15 Q6.5 19 7.5 23 Q8.5 19.5 8.5 17Z' fill='%231A0A00'/%3E%3Cpath d='M20 15 Q21.5 19 20.5 23 Q19.5 19.5 19.5 17Z' fill='%231A0A00'/%3E%3Cellipse cx='11' cy='13' rx='1.5' ry='1.4' fill='white'/%3E%3Cellipse cx='17' cy='13' rx='1.5' ry='1.4' fill='white'/%3E%3Ccircle cx='11.3' cy='13.2' r='0.9' fill='%231A0A00'/%3E%3Ccircle cx='17.3' cy='13.2' r='0.9' fill='%231A0A00'/%3E%3Ccircle cx='11.6' cy='12.8' r='0.35' fill='white'/%3E%3Ccircle cx='17.6' cy='12.8' r='0.35' fill='white'/%3E%3Cellipse cx='9' cy='15.5' rx='2' ry='1.2' fill='%23F4897A' opacity='0.3'/%3E%3Cellipse cx='19' cy='15.5' rx='2' ry='1.2' fill='%23F4897A' opacity='0.3'/%3E%3Cpath d='M10.5 17 Q14 19.5 17.5 17' stroke='%23C45A3A' stroke-width='1' fill='none' stroke-linecap='round'/%3E%3Cpath d='M7 13 Q7 6 14 6 Q21 6 21 13' stroke='%237EC63B' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3Crect x='4.5' y='12' width='4' height='5' rx='2' fill='%23336600'/%3E%3Crect x='19.5' y='12' width='4' height='5' rx='2' fill='%23336600'/%3E%3Cpath d='M22.5 16 Q24.5 18 24 20.5' stroke='%237EC63B' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='24' cy='20.8' r='1.2' fill='%237EC63B'/%3E%3C/svg%3E"/>""";
 
     // ── State ─────────────────────────────────────────────────────────────────
-    private bool   _isOpen      = false;
-    private bool   _isStreaming = false;
-    private bool   _hasUnread   = false;
-    private string _inputText   = string.Empty;
+    private bool   _isOpen        = false;
+    private bool   _isStreaming   = false;
+    private bool   _hasUnread     = false;
+    private string _inputText     = string.Empty;
     private string _streamingText = string.Empty;
     private string? _error;
 
@@ -248,7 +248,8 @@
     private string               _selectedAppId = string.Empty;
     private RagApplication?      _selectedApp;
 
-    private CancellationTokenSource? _cts;
+    // DotNetObjectReference kept alive so JS can invoke [JSInvokable] methods back
+    private DotNetObjectReference<ChatWidget>? _dotnetRef;
 
     private readonly string[] _starterPrompts =
     [
@@ -268,31 +269,46 @@
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _cts?.Cancel();
-        _cts?.Dispose();
+        try { await JS.InvokeVoidAsync("chatWidget.abort"); } catch { /* pre-render / disposed */ }
+        _dotnetRef?.Dispose();
     }
 
     // ── Panel control ─────────────────────────────────────────────────────────
-    private void OpenChat()  { _isOpen = true; _hasUnread = false; }
-    private void CloseChat() { _isOpen = false; _cts?.Cancel(); }
+    private void OpenChat() { _isOpen = true; _hasUnread = false; }
 
-    private void ClearChat()
+    private async Task CloseChat()
     {
+        _isOpen = false;
+        await AbortAsync();
+    }
+
+    private async Task ClearChat()
+    {
+        await AbortAsync();
         _messages.Clear();
         _streamingText = string.Empty;
-        _error = null;
+        _error         = null;
         _openCit.Clear();
-        _cts?.Cancel();
         _isStreaming = false;
     }
 
+    private async Task AbortAsync()
+    {
+        try { await JS.InvokeVoidAsync("chatWidget.abort"); } catch { }
+        if (_isStreaming)
+        {
+            _isStreaming    = false;
+            _streamingText  = string.Empty;
+        }
+    }
+
     // ── App selector ──────────────────────────────────────────────────────────
-    private void OnAppChanged()
+    private async Task OnAppChanged()
     {
         _selectedApp = _apps.FirstOrDefault(a => a.Id == _selectedAppId);
-        ClearChat();
+        await ClearChat();
     }
 
     // ── Send logic ────────────────────────────────────────────────────────────
@@ -313,93 +329,104 @@
         var text = _inputText.Trim();
         if (string.IsNullOrWhiteSpace(text) || _isStreaming) return;
 
-        _inputText = string.Empty;
-        _error     = null;
+        _inputText     = string.Empty;
+        _error         = null;
+        _streamingText = string.Empty;
 
-        // Snapshot history before appending new user message
-        var history = _messages.ToList();
+        // Snapshot history *before* appending the new user message
+        var historyItems = _messages
+            .Select(m => new { role = m.Role, content = m.Content })
+            .ToList();
 
         _messages.Add(new ChatMessage { Role = "user", Content = text });
-        _isStreaming   = true;
-        _streamingText = string.Empty;
+        _isStreaming = true;
 
         await InvokeAsync(StateHasChanged);
         await ScrollBottomAsync();
 
-        if (_selectedApp is null)
+        // Build request body for POST /api/chat
+        var requestBody = new
         {
-            _error       = "No application selected.";
-            _isStreaming = false;
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
+            message = text,
+            appId   = _selectedApp?.Id ?? string.Empty,
+            history = historyItems
+        };
 
-        _cts?.Cancel();
-        _cts = new CancellationTokenSource();
-        List<Citation> citations = [];
+        // Create the DotNetObjectReference once and reuse it
+        _dotnetRef ??= DotNetObjectReference.Create(this);
 
+        // Fire and forget — JS callbacks (ReceiveChunk / ReceiveDone / ReceiveError)
+        // drive the rest of the flow
         try
         {
-            await foreach (var chunk in FoundryService.StreamChatAsync(
-                               _selectedApp, history, text, _cts.Token))
-            {
-                if (chunk.IsError)  { _error = chunk.Text; break; }
-                if (chunk.IsDone)   { citations = chunk.Citations ?? []; break; }
-
-                _streamingText += chunk.Text;
-                await InvokeAsync(StateHasChanged);
-                await ScrollBottomAsync();
-            }
+            await JS.InvokeVoidAsync("chatWidget.sendMessage", requestBody, _dotnetRef);
         }
-        catch (OperationCanceledException) { /* user closed/cleared */ }
-        catch (Exception ex) { _error = $"Unexpected error: {ex.Message}"; }
-        finally
+        catch (JSException ex)
         {
-            // If the API returned an error chunk, surface it as a bot message too
-            // so it appears inline in the chat and can't be missed
-            if (!string.IsNullOrEmpty(_error) && _streamingText.Length == 0)
-            {
-                _messages.Add(new ChatMessage
-                {
-                    Role    = "assistant",
-                    Content = $"⚠️ {_error}"
-                });
-                _error = null; // shown in the message list — no need for the banner too
-            }
-
-            if (_streamingText.Length > 0)
-            {
-                _messages.Add(new ChatMessage
-                {
-                    Role      = "assistant",
-                    Content   = _streamingText,
-                    Citations = citations
-                });
-            }
-
-            _streamingText = string.Empty;
-            _isStreaming   = false;
-            _cts           = null;
-
-            if (!_isOpen) _hasUnread = true;
-
-            await InvokeAsync(StateHasChanged);
-            await ScrollBottomAsync();
-
-            // Auto-summarise once the history grows beyond the threshold
-            if (_messages.Count >= SummariseThreshold)
-                await TrimHistoryAsync();
+            await ReceiveError($"JS error: {ex.Message}");
         }
+    }
+
+    // ── JS-invokable callbacks (called from chat-widget.js) ───────────────────
+
+    /// <summary>Called by JS for each animated word chunk.</summary>
+    [JSInvokable]
+    public async Task ReceiveChunk(string chunk)
+    {
+        _streamingText += chunk;
+        await InvokeAsync(StateHasChanged);
+        await ScrollBottomAsync();
+    }
+
+    /// <summary>Called by JS when the full reply has been animated.</summary>
+    [JSInvokable]
+    public async Task ReceiveDone(string fullReply, List<Citation>? citations)
+    {
+        if (_streamingText.Length > 0 || !string.IsNullOrWhiteSpace(fullReply))
+        {
+            _messages.Add(new ChatMessage
+            {
+                Role      = "assistant",
+                Content   = string.IsNullOrWhiteSpace(fullReply) ? _streamingText : fullReply,
+                Citations = citations ?? []
+            });
+        }
+
+        _streamingText = string.Empty;
+        _isStreaming   = false;
+        if (!_isOpen) _hasUnread = true;
+
+        await InvokeAsync(StateHasChanged);
+        await ScrollBottomAsync();
+
+        // Auto-summarise once the history grows beyond the threshold
+        if (_messages.Count >= SummariseThreshold)
+            await TrimHistoryAsync();
+    }
+
+    /// <summary>Called by JS when the fetch fails or the API returns an error.</summary>
+    [JSInvokable]
+    public async Task ReceiveError(string error)
+    {
+        // Surface the error as an inline bot message so it can't be missed
+        _messages.Add(new ChatMessage
+        {
+            Role    = "assistant",
+            Content = $"⚠️ {error}"
+        });
+
+        _streamingText = string.Empty;
+        _isStreaming   = false;
+        _error         = null; // shown in message list, no need for the banner
+
+        if (!_isOpen) _hasUnread = true;
+
+        await InvokeAsync(StateHasChanged);
+        await ScrollBottomAsync();
     }
 
     // ── History summarisation ─────────────────────────────────────────────────
 
-    /// <summary>
-    /// When the message list reaches <see cref="SummariseThreshold"/>, the oldest
-    /// messages (everything except the last <see cref="SummariseTailKeep"/> turns)
-    /// are summarised by the API into a single context message.  This keeps the
-    /// payload sent to the API small while preserving conversational context.
-    /// </summary>
     private const int SummariseThreshold = 20;   // trigger at 20 messages
     private const int SummariseTailKeep  = 4;    // always keep the 4 most recent
 
@@ -412,14 +439,8 @@
         var tail        = _messages.Skip(headCount).ToList();
 
         string? summary;
-        try
-        {
-            summary = await FoundryService.SummarizeAsync(toSummarise);
-        }
-        catch
-        {
-            return; // if summarisation fails just leave history as-is
-        }
+        try   { summary = await FoundryService.SummarizeAsync(toSummarise); }
+        catch { return; } // leave history as-is if summarisation fails
 
         if (string.IsNullOrWhiteSpace(summary)) return;
 

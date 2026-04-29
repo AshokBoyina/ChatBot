@@ -1,6 +1,5 @@
 namespace ChatBot.Web.Services;
 
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Options;
 using ChatBot.Web.Models;
 
@@ -132,53 +131,24 @@ public class MockChatService : IChatService
         return Task.FromResult(result);
     }
 
-    public async IAsyncEnumerable<ChatChunk> StreamChatAsync(
+    public async Task<ChatApiResponse> GetReplyAsync(
         RagApplication? app,
         IEnumerable<ChatMessage> history,
         string userMessage,
-        [EnumeratorCancellation] CancellationToken ct = default)
+        CancellationToken ct = default)
     {
-        await Task.Delay(300, ct); // simulate network round-trip
+        await Task.Delay(400, ct); // simulate network round-trip
 
         var (reply, cite) = Pick(userMessage);
-        var rng           = new Random();
 
-        // First-turn notice
+        // Prefix first-turn notice
         bool firstTurn = !history.Any(m => m.Role == "assistant");
-        if (firstTurn)
-        {
-            foreach (var chunk in Tokenise("[Mock mode — NASS API not called]\n\n"))
-            {
-                if (ct.IsCancellationRequested) yield break;
-                yield return chunk;
-                await Task.Delay(15, ct);
-            }
-        }
+        var fullReply  = firstTurn ? $"[Mock mode — NASS API not called]\n\n{reply}" : reply;
 
-        // Stream reply word-by-word with realistic variable timing
-        foreach (var chunk in Tokenise(reply))
-        {
-            if (ct.IsCancellationRequested) yield break;
-            yield return chunk;
+        bool hasIndex  = !string.IsNullOrEmpty(app?.SearchIndexName);
+        var citations  = cite && hasIndex ? [.. FakeCitations] : (List<Citation>?)null;
 
-            var t = chunk.Text.TrimEnd();
-            int ms = t.EndsWith('.') || t.EndsWith('?') || t.EndsWith('!')
-                ? rng.Next(110, 200)
-                : t.EndsWith(',') || t.EndsWith(':')
-                    ? rng.Next(55, 90)
-                    : t == "\n" ? rng.Next(70, 130)
-                    : rng.Next(22, 50);
-
-            await Task.Delay(ms, ct);
-        }
-
-        // Fake citations when the app has a search index configured
-        bool hasIndex = !string.IsNullOrEmpty(app?.SearchIndexName);
-        yield return new ChatChunk
-        {
-            IsDone    = true,
-            Citations = cite && hasIndex ? [.. FakeCitations] : null
-        };
+        return new ChatApiResponse(fullReply, citations, null);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -190,14 +160,5 @@ public class MockChatService : IChatService
             if (keys.Any(k => lower.Contains(k)))
                 return (reply, cite);
         return (DefaultReply, true);
-    }
-
-    private static IEnumerable<ChatChunk> Tokenise(string text)
-    {
-        foreach (var seg in text.Replace("\n", " \n ").Split(' '))
-        {
-            if (string.IsNullOrEmpty(seg)) continue;
-            yield return new ChatChunk { Text = seg == "\n" ? "\n" : seg + " " };
-        }
     }
 }

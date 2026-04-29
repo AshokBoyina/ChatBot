@@ -1,6 +1,5 @@
 namespace ChatBot.Web.Services;
 
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -12,21 +11,18 @@ using ChatBot.Web.Models;
 ///
 /// Request shape (POST /v1/AI/Bot/chat):
 /// {
-///   "message": "current user question",
-///   "conversationHistory": [          // full in-memory session — appended each turn
-///     { "role": "user",      "content": "..." },
-///     { "role": "assistant", "content": "..." }
-///   ]
+///   "message": "current user question (optionally prepended with conversation history)"
 /// }
 ///
-/// The full history is sent on every call so the API has complete context.
-/// The response text is streamed word-by-word to the UI for a smooth UX even
-/// though the underlying HTTP call is a standard request/response (not SSE).
+/// GetReplyAsync is called by the minimal-API endpoint POST /api/chat and
+/// returns the full reply immediately — no per-word streaming delays server-side.
+/// The browser JS animates the text word-by-word on the client.
 /// </summary>
 public class NassApiService : IChatService
 {
     private readonly HttpClient          _http;
     private readonly NassApiOptions      _opts;
+    private readonly ILogger<NassApiService> _log;
     private readonly IReadOnlyList<RagApplication> _apps;
 
     private static readonly JsonSerializerOptions SerialiseOpts = new()
@@ -36,10 +32,11 @@ public class NassApiService : IChatService
         PropertyNameCaseInsensitive = true
     };
 
-    public NassApiService(HttpClient http, IOptions<NassApiOptions> opts)
+    public NassApiService(HttpClient http, IOptions<NassApiOptions> opts, ILogger<NassApiService> log)
     {
         _http = http;
         _opts = opts.Value;
+        _log  = log;
 
         _apps = _opts.Applications
             .Select(a => new RagApplication(
@@ -54,47 +51,22 @@ public class NassApiService : IChatService
 
     public IReadOnlyList<RagApplication> GetApplications() => _apps;
 
-    public async IAsyncEnumerable<ChatChunk> StreamChatAsync(
+    public async Task<ChatApiResponse> GetReplyAsync(
         RagApplication? app,
         IEnumerable<ChatMessage> history,
         string userMessage,
-        [EnumeratorCancellation] CancellationToken ct = default)
+        CancellationToken ct = default)
     {
         // Guard: config not filled in yet
         if (string.IsNullOrWhiteSpace(_opts.BaseUrl) ||
             _opts.BaseUrl.StartsWith("REPLACE", StringComparison.OrdinalIgnoreCase))
         {
-            yield return new ChatChunk
-            {
-                IsError = true, IsDone = true,
-                Text    = "NassApi:BaseUrl is not configured. " +
-                          "Please update appsettings.json."
-            };
-            yield break;
+            return new ChatApiResponse(null, null,
+                "NassApi:BaseUrl is not configured. Please update appsettings.json.");
         }
 
-        // All HTTP work is done in a regular async Task so try/catch is unrestricted
-        var (replyText, citations, errorText) =
-            await CallApiAsync(app, history, userMessage, ct);
-
-        if (errorText is not null)
-        {
-            yield return new ChatChunk { IsError = true, IsDone = true, Text = errorText };
-            yield break;
-        }
-
-        if (replyText is null) yield break; // cancelled
-
-        // Stream the reply word-by-word so the UI feels responsive
-        foreach (var chunk in Tokenise(replyText))
-        {
-            if (ct.IsCancellationRequested) yield break;
-            yield return chunk;
-            // Small delay for animation; remove if you prefer instant render
-            await Task.Delay(18, ct);
-        }
-
-        yield return new ChatChunk { IsDone = true, Citations = citations };
+        var (reply, citations, error) = await CallApiAsync(app, history, userMessage, ct);
+        return new ChatApiResponse(reply, citations, error);
     }
 
     public async Task<string?> SummarizeAsync(
@@ -144,6 +116,9 @@ public class NassApiService : IChatService
         var body = new NassApiRequest { Message = message };
         var json = JsonSerializer.Serialize(body, SerialiseOpts);
 
+        _log.LogInformation("NASS API ► POST {Url}", url);
+        _log.LogDebug("NASS API ► Request body: {Body}", json);
+
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, url)
@@ -158,25 +133,32 @@ public class NassApiService : IChatService
 
             var raw = await response.Content.ReadAsStringAsync(ct);
 
+            _log.LogInformation("NASS API ◄ {StatusCode} ({Length} chars)",
+                (int)response.StatusCode, raw.Length);
+            _log.LogDebug("NASS API ◄ Response body: {Body}", raw);
+
             if (!response.IsSuccessStatusCode)
-                return (null, null,
-                    $"API error {(int)response.StatusCode}: {raw}");
+            {
+                _log.LogWarning("NASS API error {StatusCode}: {Body}", (int)response.StatusCode, raw);
+                return (null, null, $"API error {(int)response.StatusCode}: {raw}");
+            }
 
             var (reply, citations) = ParseResponse(raw);
             return (reply, citations, null);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // User closed/cleared the chat — silent cancellation, no error shown
+            _log.LogInformation("NASS API ◄ Request cancelled by user");
             return (null, null, null);
         }
         catch (OperationCanceledException)
         {
-            // HttpClient timeout — user needs to know
+            _log.LogWarning("NASS API ◄ Request timed out ({Url})", url);
             return (null, null, "The request timed out. Please try again.");
         }
         catch (HttpRequestException ex)
         {
+            _log.LogError(ex, "NASS API ◄ Network error reaching {Url}", url);
             return (null, null, $"Could not reach the NASS API: {ex.Message}");
         }
         catch (Exception ex)
@@ -264,17 +246,6 @@ public class NassApiService : IChatService
     private static string? Truncate(string? s, int max) =>
         s is null ? null : s.Length <= max ? s : s[..max] + "…";
 
-    // ── Streaming tokeniser ───────────────────────────────────────────────────
-
-    /// <summary>Splits reply text into word-sized ChatChunks for streaming display.</summary>
-    private static IEnumerable<ChatChunk> Tokenise(string text)
-    {
-        foreach (var seg in text.Replace("\n", " \n ").Split(' '))
-        {
-            if (string.IsNullOrEmpty(seg)) continue;
-            yield return new ChatChunk { Text = seg == "\n" ? "\n" : seg + " " };
-        }
-    }
 }
 
 // ── Internal request models ───────────────────────────────────────────────────

@@ -37,3 +37,20 @@ public class ChatChunk
     public bool            IsError  { get; set; }
 }
 
+// ── Minimal-API /api/chat shapes ──────────────────────────────────────────────
+
+/// <summary>Request body posted from the browser to POST /api/chat.</summary>
+public record ChatApiRequest(
+    string              Message,
+    string?             AppId,
+    List<ChatHistoryItem> History);
+
+/// <summary>A single history turn sent from the browser.</summary>
+public record ChatHistoryItem(string Role, string Content);
+
+/// <summary>Response body returned by POST /api/chat.</summary>
+public record ChatApiResponse(
+    string?        Reply,
+    List<Citation>? Citations,
+    string?        Error = null);
+

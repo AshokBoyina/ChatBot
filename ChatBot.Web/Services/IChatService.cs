@@ -15,11 +15,12 @@ public interface IChatService
     IReadOnlyList<RagApplication> GetApplications();
 
     /// <summary>
-    /// Sends a user message (plus the full in-memory session history) to the
-    /// back-end and yields response text chunks for real-time streaming display.
-    /// The final chunk has IsDone = true and may carry RAG citations.
+    /// Returns the full reply in one shot (no word-by-word delays).
+    /// Called by the minimal-API endpoint POST /api/chat so the HTTP response
+    /// is returned as soon as the back-end replies — the browser JS then
+    /// animates the text word-by-word on the client side.
     /// </summary>
-    IAsyncEnumerable<ChatChunk> StreamChatAsync(
+    Task<ChatApiResponse> GetReplyAsync(
         RagApplication? app,
         IEnumerable<ChatMessage> history,
         string userMessage,

@@ -1,4 +1,5 @@
 using ChatBot.Web.Components;
+using ChatBot.Web.Models;
 using ChatBot.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,5 +43,27 @@ app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+// ── Chat API endpoint — browser fetch() calls this; visible in Network tab ──
+app.MapPost("/api/chat", async (
+    ChatApiRequest       req,
+    IChatService         svc,
+    CancellationToken    ct) =>
+{
+    // Resolve the selected RAG application
+    var apps = svc.GetApplications();
+    var selectedApp = string.IsNullOrEmpty(req.AppId)
+        ? apps.FirstOrDefault()
+        : apps.FirstOrDefault(a => a.Id == req.AppId);
+
+    // Convert lightweight history items to ChatMessage objects
+    var history = req.History
+        .Select(h => new ChatMessage { Role = h.Role, Content = h.Content })
+        .ToList();
+
+    var result = await svc.GetReplyAsync(selectedApp, history, req.Message, ct);
+    return Results.Json(result);
+})
+.DisableAntiforgery();   // fetch() POSTs don't carry the antiforgery cookie
 
 app.Run();
