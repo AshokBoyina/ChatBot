@@ -1,6 +1,6 @@
 @inject IChatService FoundryService
 @inject IJSRuntime JS
-@implements IAsyncDisposable
+@implements IDisposable
 
 <div class="cw-container">
 
@@ -186,9 +186,9 @@
     private string _streamingText = string.Empty;
     private string? _error;
 
-    private List<ChatMessage> _messages = [];
-    private HashSet<string>   _openCit  = [];
-    private DotNetObjectReference<ChatWidget>? _dotnetRef;
+    private List<ChatMessage>        _messages = [];
+    private HashSet<string>          _openCit  = [];
+    private CancellationTokenSource? _cts;
 
     private readonly string[] _starterPrompts =
     [
@@ -197,25 +197,30 @@
         "What are the key policies I should know?"
     ];
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        try { await JS.InvokeVoidAsync("chatWidget.abort"); } catch { }
-        _dotnetRef?.Dispose();
+        _cts?.Cancel();
+        _cts?.Dispose();
     }
 
-    private void OpenChat()  { _isOpen = true;  _hasUnread = false; }
-    private async Task CloseChat() { _isOpen = false; await AbortAsync(); }
+    private void OpenChat()  { _isOpen = true; _hasUnread = false; }
+    private void CloseChat() { _isOpen = false; AbortStreaming(); }
 
-    private async Task ClearChat()
+    private void ClearChat()
     {
-        await AbortAsync();
-        _messages.Clear(); _streamingText = string.Empty; _error = null; _openCit.Clear(); _isStreaming = false;
+        AbortStreaming();
+        _messages.Clear();
+        _streamingText = string.Empty;
+        _error         = null;
+        _openCit.Clear();
     }
 
-    private async Task AbortAsync()
+    private void AbortStreaming()
     {
-        try { await JS.InvokeVoidAsync("chatWidget.abort"); } catch { }
-        if (_isStreaming) { _isStreaming = false; _streamingText = string.Empty; }
+        _cts?.Cancel();
+        _cts           = null;
+        _isStreaming   = false;
+        _streamingText = string.Empty;
     }
 
     private async Task HandleKey(KeyboardEventArgs e)
@@ -230,68 +235,73 @@
         var text = _inputText.Trim();
         if (string.IsNullOrWhiteSpace(text) || _isStreaming) return;
 
-        _inputText = string.Empty; _error = null; _streamingText = string.Empty;
+        _inputText     = string.Empty;
+        _error         = null;
+        _streamingText = string.Empty;
 
-        var history = _messages.ToList(); // snapshot before adding new user message
+        var history = _messages.ToList(); // snapshot before adding user message
         _messages.Add(new ChatMessage { Role = "user", Content = text });
         _isStreaming = true;
 
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+
         await InvokeAsync(StateHasChanged);
         await ScrollBottomAsync();
 
-        if (FoundryService.IsMock)
+        try
         {
-            // Mock: call C# service directly — no JS/HTTP needed
-            try
+            var result = await FoundryService.GetReplyAsync(history, text, ct);
+
+            if (ct.IsCancellationRequested) return;
+
+            if (result.Error is not null)
             {
-                var result = await FoundryService.GetReplyAsync(history, text);
-                if (result.Error is not null)
-                    await ReceiveError(result.Error);
-                else
-                    await ReceiveDone(result.Reply ?? string.Empty, result.Citations);
+                await ShowErrorAsync(result.Error);
+                return;
             }
-            catch (Exception ex) { await ReceiveError(ex.Message); }
+
+            await AnimateReplyAsync(result.Reply ?? string.Empty, result.Citations, ct);
         }
-        else
+        catch (OperationCanceledException) { /* user closed/cleared — silent */ }
+        catch (Exception ex)               { await ShowErrorAsync(ex.Message); }
+    }
+
+    private async Task AnimateReplyAsync(string fullText, List<Citation>? citations, CancellationToken ct)
+    {
+        var words = fullText.Replace("\n", " \n ").Split(' ');
+
+        foreach (var word in words)
         {
-            // Real API: use JS fetch with word-by-word streaming
-            var historyItems = history.Select(m => new { role = m.Role, content = m.Content }).ToList();
-            var requestBody  = new { message = text, history = historyItems };
-            _dotnetRef ??= DotNetObjectReference.Create(this);
-
-            try { await JS.InvokeVoidAsync("chatWidget.sendMessage", requestBody, _dotnetRef, FoundryService.ApiAccessKey); }
-            catch (JSException ex) { await ReceiveError($"JS error: {ex.Message}"); }
+            if (ct.IsCancellationRequested) return;
+            if (string.IsNullOrEmpty(word)) continue;
+            _streamingText += word == "\n" ? "\n" : word + " ";
+            await InvokeAsync(StateHasChanged);
+            await ScrollBottomAsync();
+            await Task.Delay(18, ct);
         }
-    }
 
-    [JSInvokable]
-    public async Task ReceiveChunk(string chunk)
-    {
-        _streamingText += chunk;
-        await InvokeAsync(StateHasChanged);
-        await ScrollBottomAsync();
-    }
+        if (ct.IsCancellationRequested) return;
 
-    [JSInvokable]
-    public async Task ReceiveDone(string fullReply, List<Citation>? citations)
-    {
         _messages.Add(new ChatMessage
         {
             Role      = "assistant",
-            Content   = string.IsNullOrWhiteSpace(fullReply) ? _streamingText : fullReply,
+            Content   = fullText,
             Citations = citations ?? []
         });
-        _streamingText = string.Empty; _isStreaming = false;
+        _streamingText = string.Empty;
+        _isStreaming   = false;
         if (!_isOpen) _hasUnread = true;
+
         await InvokeAsync(StateHasChanged);
         await ScrollBottomAsync();
     }
 
-    [JSInvokable]
-    public async Task ReceiveError(string error)
+    private async Task ShowErrorAsync(string error)
     {
         _messages.Add(new ChatMessage { Role = "assistant", Content = $"Error: {error}" });
-        _streamingText = string.Empty; _isStreaming = false;
+        _streamingText = string.Empty;
+        _isStreaming   = false;
         if (!_isOpen) _hasUnread = true;
         await InvokeAsync(StateHasChanged);
     }

@@ -11,7 +11,6 @@ public class MockChatService : IChatService
 
     public string  AssistantName => _opts.AssistantName;
     public string? ApiAccessKey  => _opts.ApiAccessKey;
-    public bool    IsMock        => true;
 
     public async Task<ChatApiResponse> GetReplyAsync(
         IEnumerable<ChatMessage> history,
@@ -25,9 +24,6 @@ public class MockChatService : IChatService
         var citations  = cite ? (List<Citation>?) [.. FakeCitations] : null;
         return new ChatApiResponse(fullReply, citations);
     }
-
-    public Task<string?> SummarizeAsync(IEnumerable<ChatMessage> history, CancellationToken ct = default)
-        => Task.FromResult<string?>("Mock conversation");
 
     private static (string reply, bool cite) PickReply(string input)
     {

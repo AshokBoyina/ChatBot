@@ -19,7 +19,6 @@ public class NassApiService : IChatService
 
     public string  AssistantName => _opts.AssistantName;
     public string? ApiAccessKey  => _opts.ApiAccessKey;
-    public bool    IsMock        => false;
 
     public async Task<ChatApiResponse> GetReplyAsync(
         IEnumerable<ChatMessage> history,
@@ -35,9 +34,6 @@ public class NassApiService : IChatService
         catch (OperationCanceledException) { return new ChatApiResponse(null, null, "Request cancelled."); }
         catch (Exception ex)               { return new ChatApiResponse(null, null, $"API error: {ex.Message}"); }
     }
-
-    public Task<string?> SummarizeAsync(IEnumerable<ChatMessage> history, CancellationToken ct = default)
-        => Task.FromResult<string?>(null);
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
