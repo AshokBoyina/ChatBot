@@ -6,11 +6,9 @@ public interface IChatService
 {
     string  AssistantName { get; }
     string? ApiAccessKey  { get; }
-
-    IReadOnlyList<RagApplication> GetApplications();
+    bool    IsMock        { get; }
 
     Task<ChatApiResponse> GetReplyAsync(
-        RagApplication?          app,
         IEnumerable<ChatMessage> history,
         string                   userMessage,
         CancellationToken        ct = default);

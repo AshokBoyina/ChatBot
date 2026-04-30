@@ -19,22 +19,16 @@ public class NassApiService : IChatService
 
     public string  AssistantName => _opts.AssistantName;
     public string? ApiAccessKey  => _opts.ApiAccessKey;
-
-    public IReadOnlyList<RagApplication> GetApplications() =>
-        _opts.Applications
-             .Select(a => new RagApplication(
-                 a.Id, a.Name, a.Description, a.DeploymentName, a.SearchIndexName))
-             .ToList();
+    public bool    IsMock        => false;
 
     public async Task<ChatApiResponse> GetReplyAsync(
-        RagApplication?          app,
         IEnumerable<ChatMessage> history,
         string                   userMessage,
         CancellationToken        ct = default)
     {
         try
         {
-            var payload = BuildPayload(app, history, userMessage);
+            var payload = BuildPayload(history, userMessage);
             var reply   = await CallApiAsync(payload, ct);
             return new ChatApiResponse(reply, null);
         }
@@ -47,19 +41,14 @@ public class NassApiService : IChatService
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private object BuildPayload(RagApplication? app, IEnumerable<ChatMessage> history, string userMessage)
+    private object BuildPayload(IEnumerable<ChatMessage> history, string userMessage)
     {
         var messages = new List<object>();
         if (_opts.SendChatHistory)
             foreach (var m in history)
                 messages.Add(new { role = m.Role, content = m.Content });
         messages.Add(new { role = "user", content = userMessage });
-        return new
-        {
-            messages,
-            deployment_name   = app?.DeploymentName   ?? "default",
-            search_index_name = app?.SearchIndexName  ?? string.Empty
-        };
+        return new { messages };
     }
 
     private async Task<string> CallApiAsync(object payload, CancellationToken ct)

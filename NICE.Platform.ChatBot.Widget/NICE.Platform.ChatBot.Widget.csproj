@@ -13,7 +13,7 @@
     <!-- NuGet package metadata -->
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageId>NICE.Platform.ChatBot.Widget</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.0.3</Version>
     <Authors>NASS</Authors>
     <Description>Blazor Server floating chat widget for the NASS AI Bot API. Drop-in component with RAG citations, word-by-word animation, and mock mode.</Description>
     <PackageTags>blazor;chatbot;nass;widget;ai</PackageTags>

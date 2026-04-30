@@ -11,15 +11,9 @@ public class MockChatService : IChatService
 
     public string  AssistantName => _opts.AssistantName;
     public string? ApiAccessKey  => _opts.ApiAccessKey;
-
-    public IReadOnlyList<RagApplication> GetApplications() =>
-        _opts.Applications
-             .Select(a => new RagApplication(
-                 a.Id, a.Name, a.Description, a.DeploymentName, a.SearchIndexName))
-             .ToList();
+    public bool    IsMock        => true;
 
     public async Task<ChatApiResponse> GetReplyAsync(
-        RagApplication?          app,
         IEnumerable<ChatMessage> history,
         string                   userMessage,
         CancellationToken        ct = default)
@@ -28,9 +22,7 @@ public class MockChatService : IChatService
         var (reply, cite) = PickReply(userMessage);
         bool firstTurn = !history.Any(m => m.Role == "assistant");
         var fullReply  = firstTurn ? $"[Mock mode — NASS API not called]\n\n{reply}" : reply;
-        var citations  = cite && !string.IsNullOrEmpty(app?.SearchIndexName)
-                         ? (List<Citation>?) [.. FakeCitations]
-                         : null;
+        var citations  = cite ? (List<Citation>?) [.. FakeCitations] : null;
         return new ChatApiResponse(fullReply, citations);
     }
 

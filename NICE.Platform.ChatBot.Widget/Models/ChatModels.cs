@@ -1,13 +1,5 @@
 namespace NICE.Platform.ChatBot.Widget.Models;
 
-/// <summary>A configured RAG application / knowledge base selectable from the UI.</summary>
-public record RagApplication(
-    string Id,
-    string Name,
-    string Description,
-    string DeploymentName,
-    string? SearchIndexName);
-
 /// <summary>A single turn in the conversation.</summary>
 public class ChatMessage
 {
@@ -27,15 +19,6 @@ public class Citation
     public string? FilePath { get; set; }
     public string? Excerpt  { get; set; }
 }
-
-// ── /api/chat request / response shapes ──────────────────────────────────────
-
-public record ChatApiRequest(
-    string               Message,
-    string?              AppId,
-    List<ChatHistoryItem> History);
-
-public record ChatHistoryItem(string Role, string Content);
 
 public record ChatApiResponse(
     string?         Reply,

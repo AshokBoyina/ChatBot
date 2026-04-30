@@ -11,14 +11,4 @@ public class NassApiOptions
     public string? ApiAccessKey    { get; set; }
     public bool    SendChatHistory { get; set; } = true;
     public string  ResponseField   { get; set; } = "reply";
-    public List<RagAppConfig> Applications { get; set; } = [];
-}
-
-public class RagAppConfig
-{
-    public string  Id              { get; set; } = string.Empty;
-    public string  Name            { get; set; } = string.Empty;
-    public string  Description     { get; set; } = string.Empty;
-    public string  DeploymentName  { get; set; } = "default";
-    public string? SearchIndexName { get; set; }
 }

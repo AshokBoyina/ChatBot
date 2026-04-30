@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <!-- Consuming the widget as a NuGet package from the local feed -->
-    <PackageReference Include="NICE.Platform.ChatBot.Widget" Version="1.0.1" />
+    <PackageReference Include="NICE.Platform.ChatBot.Widget" Version="1.0.3" />
   </ItemGroup>
 
 </Project>
