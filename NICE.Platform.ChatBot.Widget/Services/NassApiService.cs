@@ -27,7 +27,7 @@ public class NassApiService : IChatService
     {
         try
         {
-            var payload = BuildPayload(history, userMessage);
+            var payload = BuildPayload(userMessage);
             var reply   = await CallApiAsync(payload, ct);
             return new ChatApiResponse(reply, null);
         }
@@ -37,15 +37,8 @@ public class NassApiService : IChatService
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private object BuildPayload(IEnumerable<ChatMessage> history, string userMessage)
-    {
-        var messages = new List<object>();
-        if (_opts.SendChatHistory)
-            foreach (var m in history)
-                messages.Add(new { role = m.Role, content = m.Content });
-        messages.Add(new { role = "user", content = userMessage });
-        return new { messages };
-    }
+    private static object BuildPayload(string userMessage) =>
+        new { Message = userMessage };
 
     private async Task<string> CallApiAsync(object payload, CancellationToken ct)
     {

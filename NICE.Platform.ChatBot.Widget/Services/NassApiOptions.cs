@@ -9,6 +9,5 @@ public class NassApiOptions
     public string  ChatPath        { get; set; } = "/v1/AI/Bot/chat";
     public string? ApiKey          { get; set; }
     public string? ApiAccessKey    { get; set; }
-    public bool    SendChatHistory { get; set; } = true;
     public string  ResponseField   { get; set; } = "reply";
 }
