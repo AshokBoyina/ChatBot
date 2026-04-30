@@ -1,6 +1,6 @@
-using ChatBot.Web.Components;
-using ChatBot.Web.Models;
-using ChatBot.Web.Services;
+using NICE.Platform.ChatBot.Web.Components;
+using NICE.Platform.ChatBot.Web.Models;
+using NICE.Platform.ChatBot.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -1,4 +1,4 @@
-namespace ChatBot.Web.Models;
+namespace NICE.Platform.ChatBot.Web.Models;
 
 /// <summary>A configured RAG application / knowledge base selectable from the UI.</summary>
 public record RagApplication(

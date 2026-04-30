@@ -1,7 +1,7 @@
-namespace ChatBot.Web.Services;
+namespace NICE.Platform.ChatBot.Web.Services;
 
 using Microsoft.Extensions.Options;
-using ChatBot.Web.Models;
+using NICE.Platform.ChatBot.Web.Models;
 
 /// <summary>
 /// Drop-in mock implementation of IChatService.

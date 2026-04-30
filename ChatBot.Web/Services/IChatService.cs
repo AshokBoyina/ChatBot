@@ -1,6 +1,6 @@
-namespace ChatBot.Web.Services;
+namespace NICE.Platform.ChatBot.Web.Services;
 
-using ChatBot.Web.Models;
+using NICE.Platform.ChatBot.Web.Models;
 
 /// <summary>
 /// Abstraction over any chat back-end (NASS API, mock, etc.).

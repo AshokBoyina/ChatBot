@@ -1,4 +1,4 @@
-namespace ChatBot.Web.Services;
+namespace NICE.Platform.ChatBot.Web.Services;
 
 public class NassApiOptions
 {

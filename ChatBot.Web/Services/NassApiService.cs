@@ -1,10 +1,10 @@
-namespace ChatBot.Web.Services;
+namespace NICE.Platform.ChatBot.Web.Services;
 
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
-using ChatBot.Web.Models;
+using NICE.Platform.ChatBot.Web.Models;
 
 /// <summary>
 /// Calls the NASS AI Bot REST API.
