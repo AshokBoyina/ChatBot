@@ -1,0 +1,16 @@
+@page "/"
+
+<PageTitle>ChatBot Test App</PageTitle>
+
+<div class="hero">
+    <h1>NuGet Package Test</h1>
+    <p>This app has <strong>zero</strong> widget code of its own.</p>
+    <p>The chat widget below comes entirely from the <code>NICE.Platform.ChatBot.Widget</code> NuGet package.</p>
+    <div class="checklist">
+        <div class="check">Program.cs — <code>builder.Services.AddChatWidget(builder.Configuration);</code></div>
+        <div class="check">_Imports.razor — <code>@@using NICE.Platform.ChatBot.Widget.Components</code></div>
+        <div class="check">MainLayout.razor — <code>&lt;ChatWidget /&gt;</code></div>
+        <div class="check">appsettings.json — <code>NassApi</code> section</div>
+    </div>
+    <p class="hint">Click the green chat button in the bottom-right corner to test.</p>
+</div>

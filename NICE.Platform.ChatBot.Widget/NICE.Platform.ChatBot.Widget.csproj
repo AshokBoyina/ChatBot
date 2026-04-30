@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>NICE.Platform.ChatBot.Widget</RootNamespace>
+
+    <!-- Required for RCL static web assets to be included in the NuGet package -->
+    <AddRazorSupportForMvc>false</AddRazorSupportForMvc>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+
+    <!-- NuGet package metadata -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>NICE.Platform.ChatBot.Widget</PackageId>
+    <Version>1.0.1</Version>
+    <Authors>NASS</Authors>
+    <Description>Blazor Server floating chat widget for the NASS AI Bot API. Drop-in component with RAG citations, word-by-word animation, and mock mode.</Description>
+    <PackageTags>blazor;chatbot;nass;widget;ai</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.*-*" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.*-*" />
+  </ItemGroup>
+
+</Project>

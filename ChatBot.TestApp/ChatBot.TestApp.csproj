@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ChatBot.TestApp</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Consuming the widget as a NuGet package from the local feed -->
+    <PackageReference Include="NICE.Platform.ChatBot.Widget" Version="1.0.1" />
+  </ItemGroup>
+
+</Project>
